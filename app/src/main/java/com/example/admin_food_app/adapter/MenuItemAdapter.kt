@@ -2,6 +2,7 @@ package com.example.admin_food_app.adapter
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -13,7 +14,8 @@ import com.google.firebase.database.DatabaseReference
 class MenuItemAdapter(
     private val context: Context,
     private val menuList: ArrayList<AllMenu>,
-    databaseReference: DatabaseReference
+    databaseReference: DatabaseReference,
+    private val onDeleteClickListener:(position :Int)->Unit
 ) : RecyclerView.Adapter<MenuItemAdapter.AddItemViewHolder>() {
     private val itemQuantities = IntArray(menuList.size){1}
 
@@ -63,12 +65,29 @@ class MenuItemAdapter(
             }
         }
         private fun deleteQuantity(position: Int) {
-            menuList.removeAt(position)
-            menuList.removeAt(position)
-            menuList.removeAt(position)
-            notifyItemRemoved(position)
-            notifyItemRangeChanged(position, menuList.size)
+            // Validate if the position is within bounds
+            if (position < 0 || position >= menuList.size) {
+                Log.e("DeleteQuantity", "Invalid position: $position")
+                return
+            }
+
+            try {
+                // Remove the item from the list
+                menuList.removeAt(position)
+
+                // Notify the adapter that an item was removed
+                notifyItemRemoved(position)
+
+                // Notify the adapter that the range of items has changed
+                // This helps in case the list shrinks and item positions change
+                notifyItemRangeChanged(position, menuList.size)
+
+            } catch (e: Exception) {
+                // Catch any potential exceptions during the deletion process
+                Log.e("DeleteQuantity", "Error during deletion", e)
+            }
         }
+
 
     }
 
