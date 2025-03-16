@@ -19,7 +19,7 @@
             android:exported="false" />
         <!-- Activities -->
         <activity
-            android:name=".PendingOrderActivity"
+            android:name=".OrderManagementActivity"
             android:exported="false" />
         <activity
             android:name=".CreateUserActivity"
@@ -53,6 +53,16 @@
             android:exported="true" />
         <activity
             android:name=".MainActivity"
+            android:exported="true"></activity>
+        <!-- AddRestaurantActivity -->
+        <activity
+            android:name=".AddRestaurantsActivity"
+            android:exported="true"></activity>
+        <activity
+            android:name=".MyRestaurantsActivity"
+            android:exported="true"></activity>
+        <activity
+            android:name=".ManageExistingRestaurantsActivity"
             android:exported="true"></activity>
     </application>
 

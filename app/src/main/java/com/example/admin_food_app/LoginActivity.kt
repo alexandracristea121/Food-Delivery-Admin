@@ -21,47 +21,51 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.core.Tag
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
 
 class LoginActivity : AppCompatActivity() {
 
-    private  var userName: String ?= null
-    private  var nameOfRestaurant: String ?= null
+    private var userName: String? = null
+    private var nameOfRestaurant: String? = null
     private lateinit var email: String
     private lateinit var password: String
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
     private lateinit var googleSignInClient: GoogleSignInClient
 
-    private val binding:ActivityLoginBinding by lazy{
+    private val binding: ActivityLoginBinding by lazy {
         ActivityLoginBinding.inflate(layoutInflater)
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(binding.root)
 
-        val googleSignInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build()
+        val googleSignInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id)).requestEmail().build()
 
         auth = Firebase.auth
-        database=Firebase.database.reference
-        googleSignInClient= GoogleSignIn.getClient(this, googleSignInOptions)
+        database = Firebase.database.reference
+        googleSignInClient = GoogleSignIn.getClient(this, googleSignInOptions)
         binding.loginButton.setOnClickListener {
 
             email = binding.Email.text.toString().trim()
             password = binding.Password.text.toString().trim()
 
-            if(email.isBlank() || password.isBlank()){
+            if (email.isBlank() || password.isBlank()) {
                 Toast.makeText(this, "Please fill all details", Toast.LENGTH_SHORT).show()
-            }else{
+            } else {
                 createUserAccount(email, password)
             }
         }
         binding.GoogleButton.setOnClickListener {
             val signIntent = googleSignInClient.signInIntent
-            launcer.launch(signIntent)
+            launcher.launch(signIntent)
         }
         binding.dontHaveAccountButton.setOnClickListener {
             val intent = Intent(this, SignUpActivity::class.java)
@@ -76,18 +80,19 @@ class LoginActivity : AppCompatActivity() {
 
     private fun createUserAccount(email: String, password: String) {
         auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
-            if(task.isSuccessful){
-                val user=auth.currentUser
+            if (task.isSuccessful) {
+                val user = auth.currentUser
                 Toast.makeText(this, "Login Successfully", Toast.LENGTH_SHORT).show()
                 updateUi(user)
-            }else{
+            } else {
                 auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
-                    if(task.isSuccessful){
-                        val user=auth.currentUser
-                        Toast.makeText(this, "Create User & Login Successfully", Toast.LENGTH_SHORT).show()
+                    if (task.isSuccessful) {
+                        val user = auth.currentUser
+                        Toast.makeText(this, "Create User & Login Successfully", Toast.LENGTH_SHORT)
+                            .show()
                         saveUserData()
                         updateUi(user)
-                    }else{
+                    } else {
                         Toast.makeText(this, "Authentication failed", Toast.LENGTH_SHORT).show()
                         Log.d("Account", "createUserAccount: Authentication failed", task.exception)
                     }
@@ -101,21 +106,22 @@ class LoginActivity : AppCompatActivity() {
         password = binding.Password.text.toString().trim()
 
         val user = UserModel(userName, nameOfRestaurant, email, password)
-        val userId=FirebaseAuth.getInstance().currentUser?.uid
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
         userId?.let {
-            database.child("user").child(it).setValue(user)
+            database.child("adminUsers").child(it).setValue(user)
         }
     }
 
     private fun saveGoogleUserData(account: GoogleSignInAccount) {
         val userName = account.displayName ?: "Unknown" // Poți folosi displayName sau altceva
         val email = account.email ?: "Unknown"
-        val user = UserModel(userName, null, email, null) // Poți adăuga restul câmpurilor dacă ai nevoie
+        val user =
+            UserModel(userName, null, email, null) // Poți adăuga restul câmpurilor dacă ai nevoie
 
         // Salvăm datele utilizatorului în Firebase
         val userId = FirebaseAuth.getInstance().currentUser?.uid
         userId?.let {
-            database.child("user").child(it).setValue(user).addOnCompleteListener { task ->
+            database.child("adminUsers").child(it).setValue(user).addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     Log.d("Firebase", "User data saved successfully")
                 } else {
@@ -125,39 +131,80 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private val launcer = registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
-        result ->
-        if(result.resultCode == Activity.RESULT_OK){
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            if(task.isSuccessful){
-                val account : GoogleSignInAccount = task.result
-                val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-                auth.signInWithCredential(credential).addOnCompleteListener { authTask ->
-                    if(authTask.isSuccessful){
-                        Toast.makeText(this, "Successfully sign in with Google", Toast.LENGTH_SHORT).show()
-                        //saveGoogleUserData(account)
-                        updateUi(authTask.result?.user)
-                        finish()
-                    }else{
-                        Toast.makeText(this, "Google sign in failed", Toast.LENGTH_SHORT).show()
+    private val launcher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                if (task.isSuccessful) {
+                    val account: GoogleSignInAccount = task.result
+                    val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+                    auth.signInWithCredential(credential).addOnCompleteListener { authTask ->
+                        if (authTask.isSuccessful) {
+                            val user = authTask.result?.user
+                            val email = user?.email
+
+                            if (email != null) {
+                                // Check if the email exists in the adminUsers table
+                                database.child("adminUsers")
+                                    .orderByChild("email")
+                                    .equalTo(email)
+                                    .addListenerForSingleValueEvent(object : ValueEventListener {
+                                        override fun onDataChange(snapshot: DataSnapshot) {
+                                            if (snapshot.exists()) {
+                                                // Email exists in adminUsers
+                                                Toast.makeText(
+                                                    this@LoginActivity,
+                                                    "Welcome, Admin!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                updateUi(user)
+                                            } else {
+                                                // Email not found in adminUsers
+                                                Toast.makeText(
+                                                    this@LoginActivity,
+                                                    "Access Denied: Email not registered as admin.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                auth.signOut() // Sign out the user if not registered
+                                                googleSignInClient.signOut()
+                                            }
+                                        }
+
+                                        override fun onCancelled(error: DatabaseError) {
+                                            Log.d(
+                                                "Firebase",
+                                                "Error checking adminUsers: ${error.message}"
+                                            )
+                                        }
+                                    })
+                            } else {
+                                Toast.makeText(
+                                    this,
+                                    "Google account email is null",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } else {
+                            Toast.makeText(this, "Google sign-in failed", Toast.LENGTH_SHORT).show()
+                        }
                     }
+                } else {
+                    Toast.makeText(this, "Google sign-in failed", Toast.LENGTH_SHORT).show()
                 }
             }
-            else{
-                Toast.makeText(this, "Google sign in failed", Toast.LENGTH_SHORT).show()
-            }
         }
-    }
+
     //check if user is already logged in
-    override fun onStart(){
+    override fun onStart() {
         super.onStart()
         val currentUser = auth.currentUser
-        if(currentUser!=null){
+        if (currentUser != null) {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
 
         }
     }
+
     private fun updateUi(user: FirebaseUser?) {
         startActivity(Intent(this, MainActivity::class.java))
         finish()

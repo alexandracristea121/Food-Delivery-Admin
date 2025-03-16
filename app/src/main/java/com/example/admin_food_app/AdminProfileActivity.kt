@@ -29,7 +29,7 @@ class AdminProfileActivity : AppCompatActivity() {
         setContentView(binding.root)
         auth=FirebaseAuth.getInstance()
         database=FirebaseDatabase.getInstance()
-        adminReference=database.reference.child("user")
+        adminReference=database.reference.child("adminUsers")
 
 
         binding.backButton.setOnClickListener {
@@ -74,7 +74,7 @@ class AdminProfileActivity : AppCompatActivity() {
         val currentUserUid = auth.currentUser?.uid
         if (currentUserUid != null) {
             // Reference to the user's data using their UID under the 'user' node
-            val userReference = database.reference.child("user").child(currentUserUid)
+            val userReference = database.reference.child("adminUsers").child(currentUserUid)
 
             userReference.addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -121,11 +121,6 @@ class AdminProfileActivity : AppCompatActivity() {
         address: Any?,
         phone: Any?
     ) {
-//        binding.name.setText(ownerName.toString())
-//        binding.email.setText(email.toString())
-//        binding.password.setText(password.toString())
-//        binding.phone.setText(phone.toString())
-//        binding.address.setText(address.toString())
         binding.name.setText(ownerName.toString())
         binding.address.setText(address.toString())
         binding.email.setText(email.toString())
@@ -154,7 +149,7 @@ class AdminProfileActivity : AppCompatActivity() {
             )
 
             // Save the user data under their unique UID in the database
-            val userReference = database.reference.child("user").child(currentUserUid)
+            val userReference = database.reference.child("adminUsers").child(currentUserUid)
             userReference.setValue(userData)
                 .addOnSuccessListener {
                     Toast.makeText(this, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
